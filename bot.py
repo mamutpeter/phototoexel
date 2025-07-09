@@ -1,27 +1,37 @@
 import os
-from telegram import Update, InputFile
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import FSInputFile
+from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Message
+from aiogram import F
 from dotenv import load_dotenv
+
 from gpt_parser import extract_table_from_photo
 from excel_builder import save_table_to_excel
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    photo = update.message.photo[-1]
-    file = await photo.get_file()
-    file_path = await file.download_to_drive("invoice.jpg")
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher(storage=MemoryStorage())
 
-    table = extract_table_from_photo("invoice.jpg")
+@dp.message(F.photo)
+async def handle_photo(message: Message):
+    photo = message.photo[-1]
+    file = await bot.get_file(photo.file_id)
+    photo_path = f"invoice.jpg"
+    await bot.download_file(file.file_path, photo_path)
+
+    table = extract_table_from_photo(photo_path)
     excel_path = save_table_to_excel(table, "invoice.xlsx")
 
-    await update.message.reply_document(document=InputFile(excel_path), filename="invoice.xlsx")
+    document = FSInputFile(excel_path)
+    await message.answer_document(document, caption="✅ Ось Excel-файл")
 
-def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.run_polling()
+async def main():
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
