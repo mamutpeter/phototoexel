@@ -2,9 +2,7 @@ import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import FSInputFile
 from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message
-from aiogram import F
+from aiogram.utils import executor
 from dotenv import load_dotenv
 
 from gpt_parser import extract_table_from_photo
@@ -14,24 +12,20 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(storage=MemoryStorage())
+dp = Dispatcher(bot)
 
-@dp.message(F.photo)
-async def handle_photo(message: Message):
+
+@dp.message_handler(content_types=types.ContentType.PHOTO)
+async def handle_photo(message: types.Message):
     photo = message.photo[-1]
-    file = await bot.get_file(photo.file_id)
-    photo_path = f"invoice.jpg"
-    await bot.download_file(file.file_path, photo_path)
+    file_path = await photo.download(destination_file="invoice.jpg")
 
-    table = extract_table_from_photo(photo_path)
+    table = extract_table_from_photo("invoice.jpg")
     excel_path = save_table_to_excel(table, "invoice.xlsx")
 
-    document = FSInputFile(excel_path)
-    await message.answer_document(document, caption="✅ Ось Excel-файл")
+    await message.reply_document(FSInputFile("invoice.xlsx"), caption="Ось твій Excel ✅")
 
-async def main():
-    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    from aiogram import executor
+    executor.start_polling(dp, skip_updates=True)
