@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: invoice-gpt-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        value: твій_токен
+      - key: OPENAI_API_KEY
+        value: твій_openai_ключ
