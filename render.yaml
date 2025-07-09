@@ -6,6 +6,6 @@ services:
     startCommand: python bot.py
     envVars:
       - key: BOT_TOKEN
-        value: твій_токен
+        sync: false
       - key: OPENAI_API_KEY
-        value: твій_openai_ключ
+        sync: false
