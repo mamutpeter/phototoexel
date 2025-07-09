@@ -1,39 +1,25 @@
+import logging
 import os
-import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.filters import CommandStart
-from aiogram.types import FSInputFile
+from aiogram.utils import executor
 from dotenv import load_dotenv
-
-from gpt_parser import extract_table_from_photo
-from excel_builder import save_table_to_excel
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+API_TOKEN = os.getenv("BOT_TOKEN")
 
+logging.basicConfig(level=logging.INFO)
 
-@dp.message(CommandStart())
-async def start_handler(message: types.Message):
-    await message.answer("👋 Надішли фото рахунку-фактури, і я зроблю з нього Excel-файл.")
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher(bot)
 
+@dp.message_handler(commands=['start', 'help'])
+async def send_welcome(message: types.Message):
+    await message.reply("Привіт! Я бот на aiogram 2.x. Напиши щось, і я повторю.")
 
-@dp.message(types.ContentType.PHOTO)
-async def photo_handler(message: types.Message):
-    photo = message.photo[-1]
-    await photo.download(destination_file="invoice.jpg")
+@dp.message_handler()
+async def echo(message: types.Message):
+    await message.answer(message.text)
 
-    table = extract_table_from_photo("invoice.jpg")
-    path = save_table_to_excel(table, "invoice.xlsx")
-
-    await message.reply_document(FSInputFile(path), caption="Ось твій Excel ✅")
-
-
-async def main():
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True)
