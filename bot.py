@@ -1,31 +1,27 @@
-import logging
 import os
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import InputFile
-from aiogram.utils import executor
-from openai import OpenAI
-from dotenv import load_dotenv
+from telegram import Update, InputFile
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from gpt_parser import extract_table_from_photo
 from excel_builder import save_table_to_excel
+from dotenv import load_dotenv
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
 
-logging.basicConfig(level=logging.INFO)
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    photo = update.message.photo[-1]
+    file = await photo.get_file()
+    file_path = await file.download_to_drive("invoice.jpg")
 
-@dp.message_handler(content_types=types.ContentType.PHOTO)
-async def handle_photo(message: types.Message):
-    photo = message.photo[-1]
-    file_path = f"invoice_{message.from_user.id}.jpg"
-    await photo.download(destination_file=file_path)
+    table = extract_table_from_photo("invoice.jpg")
+    excel_path = save_table_to_excel(table, "invoice.xlsx")
 
-    # Обробка GPT і збереження Excel
-    table = extract_table_from_photo(file_path)
-    excel_path = save_table_to_excel(table, f"invoice_{message.from_user.id}.xlsx")
+    await update.message.reply_document(document=InputFile(excel_path), filename="invoice.xlsx")
 
-    await message.answer_document(InputFile(excel_path), caption="Ось ваш Excel-файл")
+def main():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.run_polling()
 
-if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+if __name__ == "__main__":
+    main()
