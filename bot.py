@@ -1,28 +1,31 @@
 import logging
-from aiogram import Bot, Dispatcher, executor, types
-from dotenv import load_dotenv
 import os
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import InputFile
+from aiogram.utils import executor
+from openai import OpenAI
+from dotenv import load_dotenv
+from gpt_parser import extract_table_from_photo
+from excel_builder import save_table_to_excel
 
-load_dotenv()  # Завантажує змінні середовища з .env
-
-API_TOKEN = os.getenv("BOT_TOKEN")
-
-if not API_TOKEN:
-    raise RuntimeError("BOT_TOKEN not found in environment variables")
-
-# Налаштування логування
-logging.basicConfig(level=logging.INFO)
-
-bot = Bot(token=API_TOKEN)
+load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
-@dp.message_handler(commands=["start", "help"])
-async def send_welcome(message: types.Message):
-    await message.reply("Привіт! Я бот. Чим можу допомогти?")
+logging.basicConfig(level=logging.INFO)
 
-@dp.message_handler()
-async def echo(message: types.Message):
-    await message.answer(message.text)
+@dp.message_handler(content_types=types.ContentType.PHOTO)
+async def handle_photo(message: types.Message):
+    photo = message.photo[-1]
+    file_path = f"invoice_{message.from_user.id}.jpg"
+    await photo.download(destination_file=file_path)
 
-if __name__ == "__main__":
+    # Обробка GPT і збереження Excel
+    table = extract_table_from_photo(file_path)
+    excel_path = save_table_to_excel(table, f"invoice_{message.from_user.id}.xlsx")
+
+    await message.answer_document(InputFile(excel_path), caption="Ось ваш Excel-файл")
+
+if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
