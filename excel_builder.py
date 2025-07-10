@@ -1,6 +1,9 @@
-import pandas as pd
+from openpyxl import Workbook
 
-def save_table_to_excel(table: list, filename: str) -> str:
-    df = pd.DataFrame(table[1:], columns=table[0]) if len(table) > 1 else pd.DataFrame(table)
-    df.to_excel(filename, index=False)
-    return filename
+def save_table_to_excel(table: list[list[str]], path: str) -> str:
+    wb = Workbook()
+    ws = wb.active
+    for row in table:
+        ws.append(row)
+    wb.save(path)
+    return path
