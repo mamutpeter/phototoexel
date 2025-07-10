@@ -9,9 +9,8 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    photo = update.message.photo[-1]
-    file = await photo.get_file()
-    file_path = await file.download_to_drive("invoice.jpg")
+    photo_file = await update.message.photo[-1].get_file()
+    await photo_file.download_to_drive("invoice.jpg")
 
     table = extract_table_from_photo("invoice.jpg")
     excel_path = save_table_to_excel(table, "invoice.xlsx")
