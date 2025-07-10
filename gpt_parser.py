@@ -1,35 +1,32 @@
-import openai
 import os
-from dotenv import load_dotenv
 import base64
+import requests
+from dotenv import load_dotenv
 
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-def encode_image_to_base64(image_path):
-    with open(image_path, "rb") as img:
-        return base64.b64encode(img.read()).decode()
+def extract_table_from_photo(photo_path: str) -> list[list[str]]:
+    with open(photo_path, "rb") as f:
+        base64_image = base64.b64encode(f.read()).decode("utf-8")
 
-def extract_table_from_photo(image_path: str):
-    base64_image = encode_image_to_base64(image_path)
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
-    response = openai.chat.completions.create(
-        model="gpt-4-vision-preview",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Розпізнай таблицю з накладної на фото та поверни її як масив рядків, кожен з яких — це список значень колонок. Не пиши жодних пояснень, тільки масив у форматі JSON."},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                ]
-            }
+    data = {
+        "model": "gpt-4o",
+        "messages": [
+            {"role": "user", "content": [
+                {"type": "text", "text": "Витягни таблицю з цього фото у вигляді масиву масивів рядків."},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+            ]}
         ],
-        max_tokens=2000
-    )
+        "max_tokens": 2000
+    }
 
-    import json
-    try:
-        return json.loads(response.choices[0].message.content)
-    except Exception as e:
-        print("Parsing error:", e)
-        return [["Не вдалося розпізнати таблицю"]]
+    response = requests.post("https://api.openai.com/v1/chat/completions", json=data, headers=headers)
+    content = response.json()["choices"][0]["message"]["content"]
+
+    return eval(content)  # ⚠️ Будь обережним — краще використовуй JSON, якщо GPT відповідає у форматі.
