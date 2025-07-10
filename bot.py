@@ -1,37 +1,38 @@
+# bot.py
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, CommandHandler, filters
-from gpt_parser import extract_table_from_photo
-from excel_exporter import save_to_excel
+from telegram import Update, InputFile
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, ContextTypes, filters
+)
 from dotenv import load_dotenv
+from gpt_parser import extract_table_from_photo
+from excel_builder import save_table_to_excel
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привіт! Надішли мені фото рахунку, і я перетворю його у Excel-файл.")
+    await update.message.reply_text("Привіт! Надішли фото рахунку – я згенерую Excel.")
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    photo = update.message.photo[-1]
-    file = await context.bot.get_file(photo.file_id)
-    file_path = f"temp/{photo.file_id}.jpg"
-    await file.download_to_drive(file_path)
+    photo = await update.message.photo[-1].get_file()
+    await photo.download_to_drive("invoice.jpg")
 
-    try:
-        table_data = extract_table_from_photo(file_path)
-        excel_path = save_to_excel(table_data, photo.file_id)
+    table_data = extract_table_from_photo("invoice.jpg")
+    excel_path = save_table_to_excel(table_data, "invoice.xlsx")
 
-        with open(excel_path, "rb") as f:
-            await update.message.reply_document(f, filename="result.xlsx")
+    await update.message.reply_document(
+        document=InputFile("invoice.xlsx"),
+        filename="invoice.xlsx"
+    )
 
-    except Exception as e:
-        await update.message.reply_text(f"Помилка: {str(e)}")
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
 
-# --------------- запуск одразу при імпорті ----------------
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.run_polling()  # ← це єдине джерело "підключення", без updater
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-
-app.run_polling()
+if __name__ == "__main__":
+    main()
