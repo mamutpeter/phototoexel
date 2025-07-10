@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: phototoexel
-    env: python
-    plan: free
-    pythonVersion: 3.11
+    name: photobot
+    runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
-    autoDeploy: true
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
